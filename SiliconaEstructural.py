@@ -47,7 +47,7 @@ if logo_b64:
     st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
 
 st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño de Bite y Glueline bajo Parámetros Elásticos**")
+st.markdown("#### **Diseño de Bite y Glueline Thickness bajo Parámetros Elásticos**")
 st.divider()
 
 # =================================================================
@@ -64,10 +64,12 @@ with st.sidebar.expander("📐 Geometría del Vidrio", expanded=True):
 with st.sidebar.expander("🌪️ Carga de Diseño", expanded=True):
     p_viento = st.number_input("Presión de Diseño p (kgf/m²)", value=185.0, step=5.0)
 
-with st.sidebar.expander("🧪 Propiedades de la Silicona", expanded=True):
+with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
+    # Opción solicitada por el usuario (Desmarcada por defecto)
+    toma_peso = st.checkbox("¿Silicona toma peso propio?", value=False, help="Marcar solo si NO se usan calzos de apoyo (setting blocks).")
+    
     f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
     f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
-    # Nuevo parámetro: Módulo de Elasticidad (E)
     E_silicona_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=2.10, step=0.10)
     delta_T = st.slider("Diferencial Térmico ΔT (°C)", 10, 80, 50)
 
@@ -75,35 +77,35 @@ with st.sidebar.expander("🧪 Propiedades de la Silicona", expanded=True):
 psi_to_kgcm2 = 0.070307
 fv = f_viento_psi * psi_to_kgcm2
 fp = f_peso_psi * psi_to_kgcm2
-E_kgcm2 = E_silicona_mpa * 10.1972 # MPa a kgf/cm²
+E_kgcm2 = E_silicona_mpa * 10.1972 
 
 # =================================================================
-# 4. MOTOR DE CÁLCULO (MECÁNICA DE MATERIALES)
+# 4. MOTOR DE CÁLCULO
 # =================================================================
 
 # 1. Masa del Vidrio
-volumen_vidrio = ancho * alto * (t_vidrio / 1000)  # m³
-densidad_vidrio = 2500  # kg/m³
-peso_vidrio = volumen_vidrio * densidad_vidrio  # kgf
+volumen_vidrio = ancho * alto * (t_vidrio / 1000)
+densidad_vidrio = 2500 
+peso_vidrio = volumen_vidrio * densidad_vidrio
 
 # 2. Bite por Viento (Bv)
 bite_viento_mm = (p_viento * lado_menor) / (2 * fv * 100) * 10
 
-# 3. Bite por Peso Propio (Bp)
-perimetro_cm = 2 * (ancho + alto) * 100
-bite_peso_mm = (peso_vidrio / (perimetro_cm * fp)) * 10
+# 3. Bite por Peso Propio (Bp) - Solo si aplica
+if toma_peso:
+    perimetro_cm = 2 * (ancho + alto) * 100
+    bite_peso_mm = (peso_vidrio / (perimetro_cm * fp)) * 10
+else:
+    bite_peso_mm = 0.0  # El peso lo toman los calzos
 
 # 4. Glueline Thickness (gt) basado en Módulo E
-# Delta L térmico (Coef. expansión térmica diferencial entre Vidrio y Aluminio)
 L_max_mm = max(ancho, alto) * 1000
-alfa_al = 23.2e-6
-alfa_vi = 9.0e-6
+alfa_al, alfa_vi = 23.2e-6, 9.0e-6
 delta_L = L_max_mm * abs(alfa_al - alfa_vi) * delta_T
 
-# Glueline considerando el módulo de elasticidad considerado para absorber delta_L
-# Bajo el criterio de esfuerzo cortante admisible derivado de E
-glueline_mm = (delta_L * E_kgcm2) / (fv * 1.5) # Factor de seguridad sobre la rigidez
-glueline_mm = max(glueline_mm, (delta_L / 0.25)) # Check de seguridad de no exceder deformación técnica
+# Glueline Thickness mecánico
+glueline_mm = (delta_L * E_kgcm2) / (fv * 1.5) 
+glueline_mm = max(glueline_mm, (delta_L / 0.25)) # Mínimo por deformación técnica 25%
 
 # =================================================================
 # 5. DESPLIEGUE DE RESULTADOS
@@ -112,8 +114,11 @@ st.subheader("📊 Resultados de Análisis Estructural")
 
 st.markdown(f"""
 <div class="weight-box">
-    <p style="margin:5px 0; color:#555;">Peso Total Calculado</p>
+    <p style="margin:5px 0; color:#555;">Peso Total del Vidrio</p>
     <p style="font-size: 1.5em; margin:0; color:#003366; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
+    <p style="font-size: 0.8em; color: {'#d9534f' if toma_peso else '#5cb85c'};">
+        {'⚠️ Silicona CARGADA con peso propio' if toma_peso else '✅ Peso soportado por CALZOS de apoyo'}
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -121,9 +126,9 @@ c1, c2, c3 = st.columns(3)
 with c1:
     st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
 with c2:
-    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm")
+    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A (Calzos)")
 with c3:
-    st.metric("Glueline (E={E_silicona_mpa} MPa)", f"{glueline_mm:.2f} mm")
+    st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
 
 # --- ESPECIFICACIÓN TÉCNICA FINAL ---
 bite_final = max(math.ceil(bite_viento_mm), math.ceil(bite_peso_mm), 6)
@@ -133,17 +138,17 @@ gt_final = max(math.ceil(glueline_mm), 6)
 
 st.markdown(f"""
 <div class="result-box">
-    <h3>✅ Especificación Final de Carpintería:</h3>
+    <h3>✅ Especificación de Diseño Final:</h3>
     <p style="font-size: 1.3em; margin-bottom:10px;">
-        <strong>Bite Estructural Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
-        <strong>Espesor de Junta (Glueline):</strong> <span style="color: #003366;">{gt_final} mm</span>
+        <strong>Structural Bite Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
+        <strong>Glueline Thickness (gt):</strong> <span style="color: #003366;">{gt_final} mm</span>
     </p>
     <hr>
     <strong>Notas del Ingeniero:</strong>
     <ul>
-        <li>Cálculo de Glueline optimizado según <strong>Módulo de Elasticidad de {E_silicona_mpa} MPa</strong>.</li>
-        <li>Diferencial térmico considerado: {delta_T}°C.</li>
-        <li>El diseño garantiza la transferencia de cargas sin exceder el esfuerzo admisible de {f_viento_psi} psi.</li>
+        <li>Cálculo de Glueline Thickness optimizado para un <strong>Módulo E de {E_silicona_mpa} MPa</strong>.</li>
+        <li>{'Silicona NO toma peso propio (Uso de calzos obligatorio).' if not toma_peso else 'Silicona dimensionada para absorber peso propio a corte.'}</li>
+        <li>Cumple con el mínimo constructivo de 6mm según práctica industrial.</li>
     </ul>
 </div>
 """, unsafe_allow_html=True)
@@ -151,17 +156,17 @@ st.markdown(f"""
 # =================================================================
 # 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Comportamiento del Diseño")
+st.subheader("📈 Comportamiento del Bite vs Viento")
 p_rango = np.linspace(50, 450, 50)
-b_viento_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
+b_v_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
 
 fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(p_rango, b_viento_rango, color='#003366', lw=2.5, label='Bite (Viento)')
-ax.axhline(bite_peso_mm, color='#d9534f', ls='--', label='Bite (Peso)')
+ax.plot(p_rango, b_v_rango, color='#003366', lw=2.5, label='Bite (Viento)')
+if toma_peso:
+    ax.axhline(bite_peso_mm, color='#d9534f', ls='--', label='Bite (Peso)')
 ax.axhline(glueline_mm, color='#5cb85c', ls=':', label='Glueline Thickness')
-ax.axhline(6, color='#333', lw=1, ls='-.', label='Mínimo Constructivo')
-ax.fill_between(p_rango, [max(v, bite_peso_mm, glueline_mm, 6) for v in b_viento_rango], color='#003366', alpha=0.05)
-ax.set_xlabel("Presión de Diseño (kgf/m²)")
+ax.axhline(6, color='#333', lw=1, ls='-.', label='Mínimo 6mm')
+ax.set_xlabel("Presión de Viento (kgf/m²)")
 ax.set_ylabel("Dimensión (mm)")
 ax.legend()
 st.pyplot(fig)
@@ -172,7 +177,7 @@ st.pyplot(fig)
 st.markdown("---")
 st.markdown(f"""
     <div style="text-align: center; color: #666;">
-        <strong>{ancho}m x {alto}m | {t_vidrio}mm | Proyectos Estructurales Lab</strong><br>
+        <strong>Proyectos Estructurales Lab | Mauricio Riquelme</strong><br>
         <span style="font-style: italic; font-size: 1.2em; color: #003366;">"Programming is understanding"</span>
     </div>
     """, unsafe_allow_html=True)
