@@ -47,7 +47,7 @@ if logo_b64:
     st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
 
 st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño de Mordida (Bite) y Glueline según ASTM C1184**")
+st.markdown("#### **Diseño de "Bite" (Bite) y Glueline según ASTM C1184**")
 st.divider()
 
 # =================================================================
@@ -140,7 +140,7 @@ st.markdown(f"""
 # =================================================================
 # 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Sensibilidad de la Mordida vs Carga de Viento")
+st.subheader("📈 Sensibilidad de la "Bite" vs Carga de Viento")
 
 p_rango = np.linspace(50, 400, 30)
 b_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
