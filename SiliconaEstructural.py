@@ -140,7 +140,7 @@ st.markdown(f"""
 # =================================================================
 # 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Sensibilidad de la "Bite" vs Carga de Viento")
+st.subheader("📈 Sensibilidad de la Bite vs Carga de Viento")
 
 p_rango = np.linspace(50, 400, 30)
 b_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
