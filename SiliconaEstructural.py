@@ -47,7 +47,7 @@ if logo_b64:
     st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
 
 st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño de "Bite" (Bite) y Glueline según ASTM C1184**")
+st.markdown("#### **Diseño de Bite y Glueline según ASTM C1184**")
 st.divider()
 
 # =================================================================
