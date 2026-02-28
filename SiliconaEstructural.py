@@ -18,14 +18,14 @@ st.markdown("""
     .result-box { 
         background-color: #f0f7ff; 
         padding: 25px; 
-        border-left: 8px solid #0056b3; 
+        border-left: 8px solid #003366; 
         border-radius: 8px; 
         margin: 20px 0;
     }
     .weight-box {
         background-color: #ffffff;
         padding: 15px;
-        border: 1px dashed #0056b3;
+        border: 1px dashed #003366;
         border-radius: 8px;
         margin-bottom: 20px;
         text-align: center;
@@ -47,11 +47,11 @@ if logo_b64:
     st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
 
 st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño de Bite y Glueline según ASTM C1184**")
+st.markdown("#### **Diseño de Bite y Glueline bajo Parámetros Elásticos**")
 st.divider()
 
 # =================================================================
-# 3. SIDEBAR: PARÁMETROS TÉCNICOS RIGUROSOS
+# 3. SIDEBAR: PARÁMETROS TÉCNICOS
 # =================================================================
 st.sidebar.header("⚙️ Parámetros de Diseño")
 
@@ -61,56 +61,59 @@ with st.sidebar.expander("📐 Geometría del Vidrio", expanded=True):
     t_vidrio = st.number_input("Espesor del Vidrio (mm)", value=10.0, step=1.0)
     lado_menor = min(ancho, alto)
 
-with st.sidebar.expander("🌪️ Carga de Viento de Diseño", expanded=True):
+with st.sidebar.expander("🌪️ Carga de Diseño", expanded=True):
     p_viento = st.number_input("Presión de Diseño p (kgf/m²)", value=185.0, step=5.0)
 
-with st.sidebar.expander("🧪 Propiedades de la Silicona"):
+with st.sidebar.expander("🧪 Propiedades de la Silicona", expanded=True):
     f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
     f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
+    # Nuevo parámetro: Módulo de Elasticidad (E)
+    E_silicona_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=2.10, step=0.10)
     delta_T = st.slider("Diferencial Térmico ΔT (°C)", 10, 80, 50)
-    strain_limit = st.slider("Límite de Deformación (%)", 10, 25, 12) / 100
 
+# Conversiones Técnicas
 psi_to_kgcm2 = 0.070307
 fv = f_viento_psi * psi_to_kgcm2
 fp = f_peso_psi * psi_to_kgcm2
+E_kgcm2 = E_silicona_mpa * 10.1972 # MPa a kgf/cm²
 
 # =================================================================
-# 4. MOTOR DE CÁLCULO
+# 4. MOTOR DE CÁLCULO (MECÁNICA DE MATERIALES)
 # =================================================================
 
-# CÁLCULO DETALLADO DE MASA
+# 1. Masa del Vidrio
 volumen_vidrio = ancho * alto * (t_vidrio / 1000)  # m³
 densidad_vidrio = 2500  # kg/m³
 peso_vidrio = volumen_vidrio * densidad_vidrio  # kgf
 
-# A. BITE POR VIENTO (Bv)
+# 2. Bite por Viento (Bv)
 bite_viento_mm = (p_viento * lado_menor) / (2 * fv * 100) * 10
 
-# B. BITE POR PESO PROPIO (Bp)
+# 3. Bite por Peso Propio (Bp)
 perimetro_cm = 2 * (ancho + alto) * 100
 bite_peso_mm = (peso_vidrio / (perimetro_cm * fp)) * 10
 
-# C. GLUELINE THICKNESS (gt)
+# 4. Glueline Thickness (gt) basado en Módulo E
+# Delta L térmico (Coef. expansión térmica diferencial entre Vidrio y Aluminio)
 L_max_mm = max(ancho, alto) * 1000
-mov_termico = L_max_mm * abs(23.2e-6 - 9.0e-6) * delta_T
-glueline_mm = mov_termico / strain_limit
+alfa_al = 23.2e-6
+alfa_vi = 9.0e-6
+delta_L = L_max_mm * abs(alfa_al - alfa_vi) * delta_T
+
+# Glueline considerando el módulo de elasticidad considerado para absorber delta_L
+# Bajo el criterio de esfuerzo cortante admisible derivado de E
+glueline_mm = (delta_L * E_kgcm2) / (fv * 1.5) # Factor de seguridad sobre la rigidez
+glueline_mm = max(glueline_mm, (delta_L / 0.25)) # Check de seguridad de no exceder deformación técnica
 
 # =================================================================
 # 5. DESPLIEGUE DE RESULTADOS
 # =================================================================
 st.subheader("📊 Resultados de Análisis Estructural")
 
-# Bloque de Peso del Vidrio
 st.markdown(f"""
 <div class="weight-box">
-    <h4 style="margin:0; color:#0056b3;">Determinación de Carga por Peso Propio</h4>
-    <p style="margin:5px 0;">
-        Volumen: <strong>{volumen_vidrio:.4f} m³</strong> | 
-        Densidad: <strong>{densidad_vidrio} kg/m³</strong>
-    </p>
-    <p style="font-size: 1.3em; margin:0;">
-        Peso Total del Vidrio: <span style="color:#d9534f; font-weight:bold;">{peso_vidrio:.2f} kgf</span>
-    </p>
+    <p style="margin:5px 0; color:#555;">Peso Total Calculado</p>
+    <p style="font-size: 1.5em; margin:0; color:#003366; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -118,91 +121,58 @@ c1, c2, c3 = st.columns(3)
 with c1:
     st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
 with c2:
-    st.metric("Bite (Peso Propio)", f"{bite_peso_mm:.2f} mm")
+    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm")
 with c3:
-    st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
+    st.metric("Glueline (E={E_silicona_mpa} MPa)", f"{glueline_mm:.2f} mm")
 
-# --- FICHA DE ESPECIFICACIÓN FINAL ---
+# --- ESPECIFICACIÓN TÉCNICA FINAL ---
 bite_final = max(math.ceil(bite_viento_mm), math.ceil(bite_peso_mm), 6)
 gt_final = max(math.ceil(glueline_mm), 6)
 
+
+
 st.markdown(f"""
 <div class="result-box">
-    <h3>✅ Especificación de Diseño Final:</h3>
-    <p style="font-size: 1.25em;">
-        <strong>Structural Bite Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
-        <strong>Glueline Thickness (gt):</strong> <span style="color: #0056b3;">{gt_final} mm</span>
+    <h3>✅ Especificación Final de Carpintería:</h3>
+    <p style="font-size: 1.3em; margin-bottom:10px;">
+        <strong>Bite Estructural Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
+        <strong>Espesor de Junta (Glueline):</strong> <span style="color: #003366;">{gt_final} mm</span>
     </p>
     <hr>
-    <strong>Resumen Técnico:</strong>
+    <strong>Notas del Ingeniero:</strong>
     <ul>
-        <li>Carga muerta calculada: {peso_vidrio:.2f} kgf repartidos en el perímetro.</li>
-        <li>Bite gobernado por {'Viento' if bite_viento_mm > bite_peso_mm else 'Peso Propio'}.</li>
-        <li>Cumple con el mínimo constructivo de 6mm.</li>
+        <li>Cálculo de Glueline optimizado según <strong>Módulo de Elasticidad de {E_silicona_mpa} MPa</strong>.</li>
+        <li>Diferencial térmico considerado: {delta_T}°C.</li>
+        <li>El diseño garantiza la transferencia de cargas sin exceder el esfuerzo admisible de {f_viento_psi} psi.</li>
     </ul>
 </div>
 """, unsafe_allow_html=True)
 
 # =================================================================
-# 6. GRÁFICO DE SENSIBILIDAD MULTIVARIABLE
+# 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Análisis Comparativo: Bite vs Carga de Viento")
-
-# Rango de presiones para el eje X
-p_rango = np.linspace(50, 450, 40)
-
-# Cálculos para las series del gráfico
+st.subheader("📈 Comportamiento del Diseño")
+p_rango = np.linspace(50, 450, 50)
 b_viento_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
-b_peso_fijo = [bite_peso_mm] * len(p_rango)
-gt_fijo = [glueline_mm] * len(p_rango)
-min_const = [6] * len(p_rango)
 
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Graficar series
-ax.plot(p_rango, b_viento_rango, color='#0056b3', lw=3, label='Bite Requerido por Viento')
-ax.plot(p_rango, b_peso_fijo, color='#d9534f', lw=2, ls='--', label='Bite Requerido por Peso Propio')
-ax.plot(p_rango, gt_fijo, color='#5cb85c', lw=2, ls=':', label='Glueline Thickness (Térmico)')
-ax.plot(p_rango, min_const, color='#333333', lw=1, ls='-.', label='Mínimo Constructivo (6mm)')
-
-# Sombreado del área de diseño (el valor máximo que gobierna)
-max_vals = [max(v, p, g, 6) for v, p, g in zip(b_viento_rango, b_peso_fijo, gt_fijo)]
-ax.fill_between(p_rango, max_vals, color='#0056b3', alpha=0.05)
-
-# Configuración técnica del gráfico
-ax.set_title(f"Sensibilidad de Diseño para Vidrio {ancho}m x {alto}m (t={t_vidrio}mm)", fontsize=12, pad=15)
-ax.set_xlabel("Presión de Diseño p (kgf/m²)", fontsize=10)
-ax.set_ylabel("Dimensión Mínima (mm)", fontsize=10)
-ax.grid(True, which="both", alpha=0.2, ls='--')
-ax.legend(loc='upper left', frameon=True, fontsize=9)
-
-# Anotación del punto actual de diseño
-ax.scatter([p_viento], [bite_final], color='black', zorder=5)
-ax.annotate(f' Punto de Diseño: {bite_final}mm', 
-            xy=(p_viento, bite_final), 
-            xytext=(p_viento+10, bite_final+1),
-            fontweight='bold')
-
+fig, ax = plt.subplots(figsize=(12, 5))
+ax.plot(p_rango, b_viento_rango, color='#003366', lw=2.5, label='Bite (Viento)')
+ax.axhline(bite_peso_mm, color='#d9534f', ls='--', label='Bite (Peso)')
+ax.axhline(glueline_mm, color='#5cb85c', ls=':', label='Glueline (Térmico/E)')
+ax.axhline(6, color='#333', lw=1, ls='-.', label='Mínimo Constructivo')
+ax.fill_between(p_rango, [max(v, bite_peso_mm, glueline_mm, 6) for v in b_viento_rango], color='#003366', alpha=0.05)
+ax.set_xlabel("Presión de Diseño (kgf/m²)")
+ax.set_ylabel("Dimensión (mm)")
+ax.legend()
 st.pyplot(fig)
 
-
 # =================================================================
-# 7. CRÉDITOS Y CIERRE
+# 7. CIERRE CORPORATIVO
 # =================================================================
 st.markdown("---")
 st.markdown(f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; color: #444; font-size: 0.9em;">
-        <div>
-            <strong>Ingeniero Responsable:</strong> Mauricio Riquelme <br>
-            <em>Proyectos Estructurales EIRL | PUC</em>
-        </div>
-        <div style="text-align: right;">
-            <strong>Contacto:</strong> <a href="mailto:mriquelme@proyectosestructurales.com">mriquelme@proyectosestructurales.com</a>
-        </div>
-    </div>
-    <div style="text-align: center; margin-top: 50px; margin-bottom: 20px;">
-        <p style="font-family: 'Georgia', serif; font-size: 1.4em; color: #003366; font-style: italic; letter-spacing: 1px;">
-            "Programming is understanding"
-        </p>
+    <div style="text-align: center; color: #666;">
+        <strong>{ancho}m x {alto}m | {t_vidrio}mm | Proyectos Estructurales Lab</strong><br>
+        <span style="font-style: italic; font-size: 1.2em; color: #003366;">"Programming is understanding"</span>
     </div>
     """, unsafe_allow_html=True)
