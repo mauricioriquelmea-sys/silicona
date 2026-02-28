@@ -7,14 +7,14 @@ import os
 import base64
 
 # =================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILO CORPORATIVO
+# 1. CONFIGURACIÓN CORPORATIVA Y ESTILO (WIDE)
 # =================================================================
-st.set_page_config(page_title="Cálculo Silicona Estructural | Mauricio Riquelme", layout="wide")
+st.set_page_config(page_title="Cálculo Silicona Estructural | Proyectos Estructurales", layout="wide")
 
 st.markdown("""
     <style>
-    .main > div { padding-left: 3rem; padding-right: 3rem; }
-    .stMetric { background-color: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #dee2e6; }
+    .main > div { padding-left: 2.5rem; padding-right: 2.5rem; max-width: 100%; }
+    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
     .result-box { 
         background-color: #f0f7ff; 
         padding: 25px; 
@@ -22,12 +22,13 @@ st.markdown("""
         border-radius: 8px; 
         margin: 20px 0;
     }
-    .formula-box {
-        background-color: #fdfdfe;
-        padding: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 5px;
-        font-family: 'Courier New', monospace;
+    .info-tag {
+        font-size: 0.85em;
+        color: #555;
+        background-color: #e9ecef;
+        padding: 5px 10px;
+        border-radius: 4px;
+        margin-top: 5px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -38,8 +39,7 @@ st.markdown("""
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as f:
-            data = f.read()
-            return base64.b64encode(data).decode()
+            return base64.b64encode(f.read()).decode()
     return None
 
 logo_b64 = get_base64_image("Logo.png")
@@ -47,139 +47,130 @@ if logo_b64:
     st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
 
 st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño según ASTM C1184 y Estándares de Fachada Glazing**")
+st.markdown("#### **Diseño de Mordida (Bite) y Glueline según ASTM C1184**")
 st.divider()
 
 # =================================================================
-# 3. SIDEBAR: PARÁMETROS TÉCNICOS
+# 3. SIDEBAR: PARÁMETROS TÉCNICOS RIGUROSOS
 # =================================================================
 st.sidebar.header("⚙️ Parámetros de Diseño")
 
 # --- GEOMETRÍA DEL PANEL ---
 with st.sidebar.expander("📐 Geometría del Vidrio", expanded=True):
-    ancho = st.number_input("Ancho del Vidrio (m)", value=1.50, min_value=0.1, step=0.05)
-    alto = st.number_input("Alto del Vidrio (m)", value=2.50, min_value=0.1, step=0.05)
-    t_vidrio = st.number_input("Espesor del Vidrio (mm)", value=10.0, min_value=3.0, step=1.0)
-    # Área tributaria para el lado menor
+    ancho = st.number_input("Ancho del Vidrio (m)", value=1.50, step=0.05)
+    alto = st.number_input("Alto del Vidrio (m)", value=2.50, step=0.05)
+    t_vidrio = st.number_input("Espesor del Vidrio (mm)", value=10.0, step=1.0)
     lado_menor = min(ancho, alto)
 
-# --- CARGAS ---
-with st.sidebar.expander("🌪️ Cargas de Diseño", expanded=True):
-    p_viento = st.number_input("Presión de Viento (kgf/m²)", value=185.0, min_value=10.0, step=5.0)
+# --- CARGAS DE VIENTO ---
+with st.sidebar.expander("🌪️ Carga de Viento de Diseño", expanded=True):
+    p_viento = st.number_input("Presión de Diseño p (kgf/m²)", value=185.0, step=5.0)
+    st.markdown('<div class="info-tag">Basado en NCh 432:2025</div>', unsafe_allow_html=True)
 
-# --- PROPIEDADES SILICONA ---
+# --- PROPIEDADES DE LA SILICONA ---
 with st.sidebar.expander("🧪 Propiedades de la Silicona"):
-    f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0, help="ASTM C1184: Típico 20 psi")
-    f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0, help="ASTM C1184: Típico 1 psi")
+    f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
+    f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
+    st.markdown('<div class="info-tag">Típicos ASTM C1184</div>', unsafe_allow_html=True)
+    
+    delta_T = st.slider("Diferencial Térmico ΔT (°C)", 10, 80, 50)
     strain_limit = st.slider("Límite de Deformación (%)", 10, 25, 12) / 100
 
-# Conversiones
+# Conversión de unidades (psi a kgf/cm2)
 psi_to_kgcm2 = 0.070307
 fv = f_viento_psi * psi_to_kgcm2
 fp = f_peso_psi * psi_to_kgcm2
 
 # =================================================================
-# 4. MOTOR DE CÁLCULO Y DEFINICIÓN DE CERRAMIENTO (RIGUROSO)
-# =================================================================
-st.sidebar.subheader("🏠 Clasificación del Cerramiento")
-
-with st.sidebar.expander("ℹ️ Nota Explicativa: Clasificación de Cerramiento"):
-    st.markdown("""
-    **Definiciones según NCh 432 (Capítulo 2):**
-    * **Abierto:** Pared abierta ≥ 80%.
-    * **Parcialmente Abierto:** Abertura pared > suma resto > 10%.
-    * **Cerrado:** No cumple anteriores.
-    """)
-
-cerramiento_opcion = st.sidebar.selectbox(
-    "Tipo de Cerramiento", 
-    ["Cerrado", "Parcialmente Abierto", "Abierto"],
-    index=0
-)
-
-# Diccionario MAESTRO: Evita errores de variables no definidas
-# Estructura: "Llave": [Factor_GCpi, "Nota_Explicativa"]
-gcpi_data = {
-    "Cerrado": [0.18, "Edificio que no cumple con los requisitos de abierto o parcialmente abierto. Es el estándar para estructuras estancas."],
-    "Parcialmente Abierto": [0.55, "Edificio donde el área de aberturas en una pared excede la suma del resto en más del 10%."],
-    "Abierto": [0.00, "Edificio con al menos 80% de aberturas en cada pared. No genera presiones internas."]
-}
-
-# ASIGNACIÓN SIMULTÁNEA (Aquí es donde se arregla el error de la línea 4)
-gc_pi_val = gcpi_data[cerramiento_opcion][0]
-def_cerramiento_vinculada = gcpi_data[cerramiento_opcion][1]
-
-st.sidebar.info(f"**Factor GCpi asociado: ± {gc_pi_val}**")
-
-# --- MOTOR DE CÁLCULO ---
-def get_gcp(a, g1, g10):
-    if a <= 1.0: return g1
-    if a >= 10.0: return g10
-    return g1 + (g10 - g1) * (np.log10(a) - np.log10(1.0))
-
-# Parámetros NCh 432-2025
-imp_map = {'I': 1.0, 'II': 1.0, 'III': 1.0, 'IV': 1.0} 
-exp_params = {'B': [7.0, 366.0], 'C': [9.5, 274.0], 'D': [11.5, 213.0]}
-alpha, zg = exp_params[cat_exp]
-
-# Cálculo a altura h
-kz_h = 2.01 * ((max(H_edif, 4.6) / zg)**(2/alpha))
-qh = (0.613 * kz_h * Kzt_val * Kd_val * (V**2) * imp_map[cat_imp]) * 0.10197
-
-# =================================================================
-# 5. DESPLIEGUE TÉCNICO DE RESULTADOS Y FORMULACIÓN
+# 4. MOTOR DE CÁLCULO
 # =================================================================
 
-# Ficha de Cerramiento (USANDO LA VARIABLE VINCULADA)
+# A. BITE POR CARGA DE VIENTO (Bv)
+# Fórmula estándar de la industria (ASTM C1401)
+bite_viento_mm = (p_viento * lado_menor) / (2 * fv * 100) * 10
+
+# B. BITE POR PESO PROPIO (Bp)
+# Aplicable solo si la silicona soporta el peso sin calzos permanentes
+peso_total = ancho * alto * (t_vidrio / 1000) * 2500  # kg (Densidad vidrio = 2500 kg/m3)
+perimetro_cm = 2 * (ancho + alto) * 100
+bite_peso_mm = (peso_total / (perimetro_cm * fp)) * 10
+
+# C. GLUELINE THICKNESS (gt)
+# Dilatación diferencial entre Aluminio (23.2e-6) y Vidrio (9.0e-6)
+L_max_mm = max(ancho, alto) * 1000
+mov_termico = L_max_mm * abs(23.2e-6 - 9.0e-6) * delta_T
+glueline_mm = mov_termico / strain_limit
+
+# =================================================================
+# 5. DESPLIEGUE DE RESULTADOS
+# =================================================================
+st.subheader("📊 Resultados de Análisis Estructural")
+
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
+with c2:
+    st.metric("Bite (Peso Propio)", f"{bite_peso_mm:.2f} mm")
+with c3:
+    st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
+
+# --- FICHA DE ESPECIFICACIÓN FINAL ---
+bite_final = max(math.ceil(bite_viento_mm), math.ceil(bite_peso_mm), 6) # Mínimo constructivo 6mm
+gt_final = max(math.ceil(glueline_mm), 6)
+
+
+
 st.markdown(f"""
-<div class="classification-box">
-    <strong>📋 Ficha Técnica de Cerramiento (NCh 432):</strong><br><br>
-    <strong>Clasificación Seleccionada:</strong> {cerramiento_opcion}<br>
-    <span style="font-size: 1.5em; color: #d9534f;"><strong>Factor de Presión Interna (GCpi): ± {gc_pi_val}</strong></span><br><br>
-    <strong>Nota Explicativa:</strong> {def_cerramiento_vinculada}
+<div class="result-box">
+    <h3>✅ Especificación de Diseño:</h3>
+    <p style="font-size: 1.25em;">
+        <strong>Structural Bite Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
+        <strong>Glueline Thickness (gt):</strong> <span style="color: #0056b3;">{gt_final} mm</span>
+    </p>
+    <hr>
+    <strong>Notas de Diseño:</strong>
+    <ul>
+        <li>El Bite estructural se rige por la succión de viento como carga crítica.</li>
+        <li>Se asume el uso de siliconas bicomponentes de alto desempeño (tipo Dow 983 o similar).</li>
+        <li>El espesor de junta (Glueline) es vital para absorber los movimientos diferenciales sin fatigar la adhesión.</li>
+    </ul>
 </div>
 """, unsafe_allow_html=True)
 
-# Caja de Fórmulas y Ecuaciones
-st.markdown("### 📝 Ecuaciones de Diseño Aplicadas")
-st.latex(r"q_h = 0.613 \cdot K_z \cdot K_{zt} \cdot K_d \cdot V^2 \cdot I")
-st.latex(r"p = q_h \cdot [GC_p - GC_{pi}]")
-
-st.info(f"**Presión qh Calculada a Altura H:** {qh:.2f} kgf/m²")
-
 # =================================================================
-# 6. GRÁFICO DE COMPORTAMIENTO Y SENSIBILIDAD
+# 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Sensibilidad: Mordida vs Presión de Viento")
+st.subheader("📈 Sensibilidad de la Mordida vs Carga de Viento")
 
-p_rango = np.linspace(50, 350, 30)
+p_rango = np.linspace(50, 400, 30)
 b_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
 
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(p_rango, b_rango, color='#0056b3', label='Bite requerido (Viento)', lw=2)
+fig, ax = plt.subplots(figsize=(12, 5))
+ax.plot(p_rango, b_rango, color='#0056b3', lw=2.5, label='Bite requerido')
 ax.axhline(6, color='red', ls='--', label='Mínimo constructivo (6mm)')
-ax.set_xlabel("Presión de Diseño (kgf/m²)")
-ax.set_ylabel("Bite Mínimo (mm)")
-ax.grid(True, which="both", alpha=0.3)
-ax.legend()
+ax.fill_between(p_rango, b_rango, 6, where=(np.array(b_rango) > 6), color='#0056b3', alpha=0.1)
 
+ax.set_xlabel("Presión de Diseño (kgf/m²)", fontsize=10)
+ax.set_ylabel("Bite Mínimo (mm)", fontsize=10)
+ax.grid(True, which="both", alpha=0.3, ls='--')
+ax.legend()
 st.pyplot(fig)
 
 # =================================================================
-# 7. CRÉDITOS FINALES
+# 7. CRÉDITOS Y CIERRE
 # =================================================================
 st.markdown("---")
 st.markdown(f"""
     <div style="display: flex; justify-content: space-between; align-items: center; color: #444; font-size: 0.9em;">
         <div>
             <strong>Ingeniero Responsable:</strong> Mauricio Riquelme <br>
-            <em>Proyectos Estructurales EIRL</em>
+            <em>Proyectos Estructurales EIRL | PUC</em>
         </div>
         <div style="text-align: right;">
             <strong>Contacto:</strong> <a href="mailto:mriquelme@proyectosestructurales.com">mriquelme@proyectosestructurales.com</a>
         </div>
     </div>
-    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+    <div style="text-align: center; margin-top: 50px; margin-bottom: 20px;">
         <p style="font-family: 'Georgia', serif; font-size: 1.4em; color: #003366; font-style: italic; letter-spacing: 1px;">
             "Programming is understanding"
         </p>
