@@ -158,7 +158,7 @@ b_viento_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(p_rango, b_viento_rango, color='#003366', lw=2.5, label='Bite (Viento)')
 ax.axhline(bite_peso_mm, color='#d9534f', ls='--', label='Bite (Peso)')
-ax.axhline(glueline_mm, color='#5cb85c', ls=':', label='Glueline (Térmico/E)')
+ax.axhline(glueline_mm, color='#5cb85c', ls=':', label='Glueline Thickness')
 ax.axhline(6, color='#333', lw=1, ls='-.', label='Mínimo Constructivo')
 ax.fill_between(p_rango, [max(v, bite_peso_mm, glueline_mm, 6) for v in b_viento_rango], color='#003366', alpha=0.05)
 ax.set_xlabel("Presión de Diseño (kgf/m²)")
