@@ -70,7 +70,7 @@ with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
     
     f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
     f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
-    E_silicona_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=2.10, step=0.10)
+    E_silicona_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=1.40, step=0.10)
     delta_T = st.slider("Diferencial Térmico ΔT (°C)", 10, 80, 50)
 
 # Conversiones Técnicas
