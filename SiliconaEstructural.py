@@ -83,14 +83,12 @@ fp = f_peso_psi * psi_to_kgcm2
 # =================================================================
 st.sidebar.subheader("🏠 Clasificación del Cerramiento")
 
-# Usamos el expander exactamente como el de Importancia para mantener consistencia
 with st.sidebar.expander("ℹ️ Nota Explicativa: Clasificación de Cerramiento"):
     st.markdown("""
     **Definiciones según NCh 432 (Capítulo 2):**
-    
-    * **Edificio Abierto:** Un edificio que tiene cada pared abierta en al menos un 80%.
-    * **Edificio Parcialmente Abierto:** Cumple con área de aberturas en una pared > suma del resto en > 10%, y aberturas > 0.37 m² o 1% de la pared.
-    * **Edificio Cerrado:** No cumple los requisitos de abierto o parcialmente abierto. Es el estándar para estructuras estancas.
+    * **Abierto:** Pared abierta ≥ 80%.
+    * **Parcialmente Abierto:** Abertura pared > suma resto > 10%.
+    * **Cerrado:** No cumple anteriores.
     """)
 
 cerramiento_opcion = st.sidebar.selectbox(
@@ -99,17 +97,17 @@ cerramiento_opcion = st.sidebar.selectbox(
     index=0
 )
 
-# Diccionario técnico centralizado para evitar errores de referencia
-# [Factor GCpi, Nota Técnica Detallada]
+# Diccionario MAESTRO: Evita errores de variables no definidas
+# Estructura: "Llave": [Factor_GCpi, "Nota_Explicativa"]
 gcpi_data = {
-    "Cerrado": [0.18, "Edificio que no cumple con los requisitos de abierto o parcialmente abierto. Se asume estanqueidad estándar."],
-    "Parcialmente Abierto": [0.55, "Edificio con aberturas significativas que permiten una presurización interna mayor durante ráfagas."],
-    "Abierto": [0.00, "Edificio con al menos 80% de apertura en cada pared; la presión interna se equilibra con la externa."]
+    "Cerrado": [0.18, "Edificio que no cumple con los requisitos de abierto o parcialmente abierto. Es el estándar para estructuras estancas."],
+    "Parcialmente Abierto": [0.55, "Edificio donde el área de aberturas en una pared excede la suma del resto en más del 10%."],
+    "Abierto": [0.00, "Edificio con al menos 80% de aberturas en cada pared. No genera presiones internas."]
 }
 
-# Asignación segura de variables
+# ASIGNACIÓN SIMULTÁNEA (Aquí es donde se arregla el error de la línea 4)
 gc_pi_val = gcpi_data[cerramiento_opcion][0]
-nota_tecnica_seleccionada = gcpi_data[cerramiento_opcion][1]
+def_cerramiento_vinculada = gcpi_data[cerramiento_opcion][1]
 
 st.sidebar.info(f"**Factor GCpi asociado: ± {gc_pi_val}**")
 
@@ -119,11 +117,12 @@ def get_gcp(a, g1, g10):
     if a >= 10.0: return g10
     return g1 + (g10 - g1) * (np.log10(a) - np.log10(1.0))
 
-imp_map = {'I': 1.0, 'II': 1.0, 'III': 1.0, 'IV': 1.0} # Según NCh 432-2025 (Riesgo en V)
+# Parámetros NCh 432-2025
+imp_map = {'I': 1.0, 'II': 1.0, 'III': 1.0, 'IV': 1.0} 
 exp_params = {'B': [7.0, 366.0], 'C': [9.5, 274.0], 'D': [11.5, 213.0]}
 alpha, zg = exp_params[cat_exp]
 
-# Kz calculado a la altura H
+# Cálculo a altura h
 kz_h = 2.01 * ((max(H_edif, 4.6) / zg)**(2/alpha))
 qh = (0.613 * kz_h * Kzt_val * Kd_val * (V**2) * imp_map[cat_imp]) * 0.10197
 
@@ -131,22 +130,22 @@ qh = (0.613 * kz_h * Kzt_val * Kd_val * (V**2) * imp_map[cat_imp]) * 0.10197
 # 5. DESPLIEGUE TÉCNICO DE RESULTADOS Y FORMULACIÓN
 # =================================================================
 
-# Ficha de Cerramiento Destacada (CORRECCIÓN DE CARGA)
+# Ficha de Cerramiento (USANDO LA VARIABLE VINCULADA)
 st.markdown(f"""
 <div class="classification-box">
     <strong>📋 Ficha Técnica de Cerramiento (NCh 432):</strong><br><br>
     <strong>Clasificación Seleccionada:</strong> {cerramiento_opcion}<br>
     <span style="font-size: 1.5em; color: #d9534f;"><strong>Factor de Presión Interna (GCpi): ± {gc_pi_val}</strong></span><br><br>
-    <strong>Nota Normativa:</strong> {nota_tecnica_seleccionada}
+    <strong>Nota Explicativa:</strong> {def_cerramiento_vinculada}
 </div>
 """, unsafe_allow_html=True)
 
-# Caja de Fórmulas y Ecuaciones con LaTeX Riguroso
+# Caja de Fórmulas y Ecuaciones
 st.markdown("### 📝 Ecuaciones de Diseño Aplicadas")
 st.latex(r"q_h = 0.613 \cdot K_z \cdot K_{zt} \cdot K_d \cdot V^2 \cdot I")
 st.latex(r"p = q_h \cdot [GC_p - GC_{pi}]")
 
-st.info(f"**Presión de velocidad máxima (qh):** {qh:.2f} kgf/m²")
+st.info(f"**Presión qh Calculada a Altura H:** {qh:.2f} kgf/m²")
 
 # =================================================================
 # 6. GRÁFICO DE COMPORTAMIENTO Y SENSIBILIDAD
