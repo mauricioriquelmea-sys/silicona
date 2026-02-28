@@ -144,24 +144,46 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =================================================================
-# 6. GRÁFICO DE SENSIBILIDAD
+# 6. GRÁFICO DE SENSIBILIDAD MULTIVARIABLE
 # =================================================================
-st.subheader("📈 Sensibilidad del Bite vs Carga de Viento")
+st.subheader("📈 Análisis Comparativo: Bite vs Carga de Viento")
 
-p_rango = np.linspace(50, 400, 30)
-b_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
+# Rango de presiones para el eje X
+p_rango = np.linspace(50, 450, 40)
 
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(p_rango, b_rango, color='#0056b3', lw=2.5, label='Bite requerido')
-ax.axhline(6, color='red', ls='--', label='Mínimo constructivo (6mm)')
-ax.fill_between(p_rango, b_rango, 6, where=(np.array(b_rango) > 6), color='#0056b3', alpha=0.1)
+# Cálculos para las series del gráfico
+b_viento_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
+b_peso_fijo = [bite_peso_mm] * len(p_rango)
+gt_fijo = [glueline_mm] * len(p_rango)
+min_const = [6] * len(p_rango)
 
-ax.set_xlabel("Presión de Diseño (kgf/m²)", fontsize=10)
-ax.set_ylabel("Bite Mínimo (mm)", fontsize=10)
-ax.grid(True, which="both", alpha=0.3, ls='--')
-ax.legend()
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Graficar series
+ax.plot(p_rango, b_viento_rango, color='#0056b3', lw=3, label='Bite Requerido por Viento')
+ax.plot(p_rango, b_peso_fijo, color='#d9534f', lw=2, ls='--', label='Bite Requerido por Peso Propio')
+ax.plot(p_rango, gt_fijo, color='#5cb85c', lw=2, ls=':', label='Glueline Thickness (Térmico)')
+ax.plot(p_rango, min_const, color='#333333', lw=1, ls='-.', label='Mínimo Constructivo (6mm)')
+
+# Sombreado del área de diseño (el valor máximo que gobierna)
+max_vals = [max(v, p, g, 6) for v, p, g in zip(b_viento_rango, b_peso_fijo, gt_fijo)]
+ax.fill_between(p_rango, max_vals, color='#0056b3', alpha=0.05)
+
+# Configuración técnica del gráfico
+ax.set_title(f"Sensibilidad de Diseño para Vidrio {ancho}m x {alto}m (t={t_vidrio}mm)", fontsize=12, pad=15)
+ax.set_xlabel("Presión de Diseño p (kgf/m²)", fontsize=10)
+ax.set_ylabel("Dimensión Mínima (mm)", fontsize=10)
+ax.grid(True, which="both", alpha=0.2, ls='--')
+ax.legend(loc='upper left', frameon=True, fontsize=9)
+
+# Anotación del punto actual de diseño
+ax.scatter([p_viento], [bite_final], color='black', zorder=5)
+ax.annotate(f' Punto de Diseño: {bite_final}mm', 
+            xy=(p_viento, bite_final), 
+            xytext=(p_viento+10, bite_final+1),
+            fontweight='bold')
+
 st.pyplot(fig)
-
 
 
 # =================================================================
