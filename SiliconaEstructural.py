@@ -109,67 +109,59 @@ glueline_mm = max(glueline_mm, (delta_L / 0.25)) # Mínimo por deformación téc
 
 # ... (Todo el código anterior de cálculo se mantiene igual) ...
 
+
 # =================================================================
-# 5. DESPLIEGUE DE RESULTADOS
+# 5. DESPLIEGUE DE RESULTADOS CON POPUP DE CALZOS
 # =================================================================
 st.subheader("📊 Resultados de Análisis Estructural")
 
-# Bloque de Calzos vs Silicona
+# Bloque de Peso del Vidrio con lógica de Calzos
 if toma_peso:
-    msg_peso = "⚠️ Silicona CARGADA con peso propio"
-    color_peso = "#d9534f"
+    st.markdown(f"""
+    <div class="weight-box">
+        <p style="margin:5px 0; color:#555;">Peso Total del Vidrio</p>
+        <p style="font-size: 1.5em; margin:0; color:#003366; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
+        <p style="color:#d9534f; font-weight:bold;">⚠️ Silicona CARGADA con peso propio</p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
-    msg_peso = "✅ Peso soportado por CALZOS (Setting Blocks)"
-    color_peso = "#28a745"
+    # Contenedor especial para calzos
+    st.markdown(f"""
+    <div class="weight-box" style="border-color: #28a745;">
+        <p style="margin:5px 0; color:#555;">Peso Total del Vidrio</p>
+        <p style="font-size: 1.5em; margin:0; color:#28a745; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
+        <p style="color:#28a745; font-weight:bold;">✅ Peso soportado por CALZOS (Setting Blocks)</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Simulación de Popup mediante Expander técnico
+    with st.expander("📍 Ver esquema de ubicación de calzos"):
+        st.write("Según estándar de carpintería, los calzos deben ubicarse en los puntos de apoyo del borde inferior:")
+        
+        # Intentar cargar la imagen del esquema de calzos
+        esquema_calzos = "ubicacion_calzos.png" # Nombre del archivo en tu repositorio
+        if os.path.exists(esquema_calzos):
+            st.image(esquema_calzos, caption="Ubicación típica de calzos a L/4", use_column_width=True)
+        else:
+            # Si no hay imagen, mostramos un diagrama instructivo
+            st.warning("Esquema no encontrado. Asegúrate de subir 'ubicacion_calzos.png' a tu repositorio.")
+            st.info("""
+            **Referencia de Instalación:**
+            - Ubicar 2 calzos en el borde inferior.
+            - Distancia desde las esquinas: **L / 4** (donde L es el ancho del vidrio).
+            - Material: Neopreno o EPDM (Dureza Shore A 80-90).
+            """)
 
-st.markdown(f"""
-<div class="weight-box">
-    <p style="margin:5px 0; color:#555;">Peso Total del Vidrio: <strong>{peso_vidrio:.2f} kgf</strong></p>
-    <p style="font-size: 1.1em; margin:0; color:{color_peso}; font-weight:bold;">{msg_peso}</p>
-</div>
-""", unsafe_allow_html=True)
 
+
+# Resto de métricas (Bite y Glueline)
 c1, c2, c3 = st.columns(3)
 with c1:
     st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
 with c2:
-    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A")
+    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A (Calzos)")
 with c3:
     st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
-
-st.divider()
-
-# --- FIGURA EXPLICATIVA (NUEVA SECCIÓN) ---
-st.markdown("### 🔍 Detalles de la Junta Estructural")
-col_fig, col_txt = st.columns([1, 1])
-
-with col_fig:
-    # Intenta cargar tu imagen local si existe, sino muestra un esquema descriptivo
-    esquema_path = "esquema_silicona.png" # Asegúrate de que este archivo esté en tu GitHub
-    if os.path.exists(esquema_path):
-        st.image(esquema_path, caption="Nomenclatura ASTM C1184", use_column_width=True)
-    else:
-        # Diagrama de referencia técnica si no hay imagen
-        st.info("💡 **Esquema Técnico:**\n\n"
-                "1. **Structural Bite:** Superficie de contacto entre silicona y vidrio/aluminio.\n"
-                "2. **Glueline Thickness:** Distancia de separación (junta) entre el vidrio y el marco.\n"
-                "3. **Setting Block (Calzo):** Soporte en la base para carga muerta.")
-
-with col_txt:
-    bite_final = max(math.ceil(bite_viento_mm), math.ceil(bite_peso_mm), 6)
-    gt_final = max(math.ceil(glueline_mm), 6)
-    
-    st.markdown(f"""
-    <div class="result-box" style="margin-top:0;">
-        <h3 style="margin-top:0;">✅ Especificación Final:</h3>
-        <p style="font-size: 1.4em;">
-            <strong>Bite Mínimo:</strong> <span style="color: #d9534f;">{bite_final} mm</span><br>
-            <strong>Glueline Thickness (gt):</strong> <span style="color: #003366;">{gt_final} mm</span>
-        </p>
-        <hr>
-        <small>Valores redondeados al entero superior. Se asume cumplimiento de limpieza según protocolo del fabricante.</small>
-    </div>
-    """, unsafe_allow_html=True)
 
 
 # =================================================================
