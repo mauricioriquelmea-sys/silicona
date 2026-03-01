@@ -182,6 +182,11 @@ with st.sidebar.expander("🛡️ Esfuerzos Admisibles y Cargas", expanded=True)
     )
     st.markdown(f'<div class="unit-box">Equivalente: {psi_to_kpa(f_shear_larga_psi):.2f} kPa</div>', unsafe_allow_html=True)
 
+    mod_e_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=1.40, step=0.1)
+    st.markdown(f'<div class="unit-box">Equivalente: {mod_e_mpa * 145.038:.1f} psi</div>', unsafe_allow_html=True)
+    
+    delta_temp = st.slider("Diferencial Térmico Máximo ΔT (°C)", 10, 80, 50)
+
 # 3.3 Propiedades Mecánicas y Soporte
 with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
     check_toma_peso = st.checkbox("¿Silicona toma peso propio? (Corte)", value=False)
@@ -192,10 +197,7 @@ with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
         if os.path.exists("ubicacion_calzos.png"):
             st.image("ubicacion_calzos.png", caption="Apoyos según NCh / ASTM")
     
-    mod_e_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=1.40, step=0.1)
-    st.markdown(f'<div class="unit-box">Equivalente: {mod_e_mpa * 145.038:.1f} psi</div>', unsafe_allow_html=True)
-    
-    delta_temp = st.slider("Diferencial Térmico Máximo ΔT (°C)", 10, 80, 50)
+
 
 # Constantes Estructurales y Conversiones
 MIN_GEOM = 6.35 # 1/4 pulgada en mm (Mínimo absoluto inyectable)
