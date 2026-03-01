@@ -188,7 +188,7 @@ with st.sidebar.expander("🛡️ Esfuerzos Admisibles y Cargas", expanded=True)
     delta_temp = st.slider("Diferencial Térmico Máximo ΔT (°C)", 10, 80, 50)
 
 # 3.3 Propiedades Mecánicas y Soporte
-with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
+with st.sidebar.expander("🧪 Peso Propio", expanded=True):
     check_toma_peso = st.checkbox("¿Silicona toma peso propio? (Corte)", value=False)
     
     if not check_toma_peso:
