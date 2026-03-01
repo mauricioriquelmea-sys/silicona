@@ -32,7 +32,6 @@ st.markdown("""
         margin-bottom: 20px;
         text-align: center;
     }
-    .stExpander { border: 1px solid #dee2e6; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -70,13 +69,14 @@ with st.sidebar.expander("🌪️ Carga de Diseño", expanded=True):
 with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
     toma_peso = st.checkbox("¿Silicona toma peso propio?", value=False)
     
-    # NUEVO: Guía de Calzos integrada
-    st.markdown("---")
-    st.markdown("**📍 Guía Técnica de Calzos**")
-    if os.path.exists("ubicacion_calzos.png"):
-        st.image("ubicacion_calzos.png", caption="Ubicación normativa de calzos de apoyo")
-    else:
-        st.caption("Subir 'ubicacion_calzos.png' para visualizar guía.")
+    # LÓGICA CONDICIONAL: Solo muestra calzos si NO toma el peso
+    if not toma_peso:
+        st.markdown("---")
+        st.markdown("**📍 Guía Técnica de Calzos**")
+        if os.path.exists("ubicacion_calzos.png"):
+            st.image("ubicacion_calzos.png", caption="Ubicación normativa de calzos de apoyo")
+        else:
+            st.caption("Subir 'ubicacion_calzos.png' para guía.")
     
     f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
     f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
@@ -131,22 +131,23 @@ def generar_pdf_silicona():
     pdf.cell(0, 10, " 1. PARAMETROS DE DISENO", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Vidrio: {ancho}m x {alto}m | Espesor: {t_vidrio}mm", ln=True)
-    pdf.cell(0, 8, f" Presion de Viento: {p_viento} kgf/m2 | Diferencial Termico: {delta_T} C", ln=True)
+    pdf.cell(0, 8, f" Presion de Viento: {p_viento} kgf/m2", ln=True)
     pdf.ln(5)
 
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 2. RESULTADOS ESTRUCTURALES", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Bite Sugerido (Viento): {bite_viento_mm:.2f} mm", ln=True)
-    pdf.cell(0, 8, f" Bite Sugerido (Peso): {bite_peso_mm:.2f} mm" if toma_peso else " Bite Sugerido (Peso): N/A (Soportado por Calzos)", ln=True)
+    pdf.cell(0, 8, f" Bite Sugerido (Peso): {bite_peso_mm:.2f} mm" if toma_peso else " Bite Sugerido (Peso): N/A (Uso de Calzos)", ln=True)
     pdf.cell(0, 8, f" Glueline Thickness (gt): {glueline_mm:.2f} mm", ln=True)
     pdf.cell(0, 8, f" Peso Total Vidrio: {peso_vidrio:.2f} kgf", ln=True)
     
-    if os.path.exists("ubicacion_calzos.png") and not toma_peso:
+    # Condicional en el PDF: Solo muestra el esquema si no toma el peso
+    if not toma_peso and os.path.exists("ubicacion_calzos.png"):
         pdf.ln(10)
         pdf.set_font("Arial", 'B', 11)
-        pdf.cell(0, 10, " 3. ESQUEMA DE APOYO", ln=True, fill=True)
-        pdf.image("ubicacion_calzos.png", w=100)
+        pdf.cell(0, 10, " 3. ESQUEMA DE APOYO RECOMENDADO", ln=True, fill=True)
+        pdf.image("ubicacion_calzos.png", w=90)
 
     pdf.set_y(-25)
     pdf.set_font("Arial", 'I', 8)
@@ -158,59 +159,46 @@ if st.sidebar.button("📄 Preparar Reporte PDF"):
     try:
         pdf_bytes = generar_pdf_silicona()
         b64 = base64.b64encode(pdf_bytes).decode()
-        btn_html = f'''
-            <div style="text-align: center; margin-top: 10px;">
-                <a href="data:application/pdf;base64,{b64}" download="Memoria_Silicona_{datetime.now().strftime('%Y%m%d')}.pdf" 
-                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
-                   border-radius: 5px; font-weight: bold; display: block;">
-                    📥 DESCARGAR REPORTE
-                </a>
-            </div>
-        '''
-        st.sidebar.markdown(btn_html, unsafe_allow_html=True)
-        st.sidebar.info("Reporte listo para descarga.")
+        st.sidebar.markdown(f'<a href="data:application/pdf;base64,{b64}" download="Memoria_Silicona.pdf" style="background-color:#ff9900;color:white;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;display:block;text-align:center;">📥 DESCARGAR REPORTE</a>', unsafe_allow_html=True)
     except Exception as e:
-        st.sidebar.error(f"Error técnico: {e}")
+        st.sidebar.error(f"Error: {e}")
 
 # =================================================================
-# 6. DESPLIEGUE DE RESULTADOS EN PANTALLA
+# 6. DESPLIEGUE DE RESULTADOS Y GRÁFICOS
 # =================================================================
 st.subheader("📊 Resultados de Análisis Estructural")
 
 if toma_peso:
-    st.markdown(f'<div class="weight-box"><p style="color:#d9534f; font-weight:bold;">⚠️ Silicona CARGADA con peso ({peso_vidrio:.2f} kgf)</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="weight-box" style="border-color:#d9534f;"><p style="color:#d9534f;">⚠️ SILICONA TRABAJANDO A CORTE (Peso: {peso_vidrio:.2f} kgf)</p></div>', unsafe_allow_html=True)
 else:
-    st.markdown(f'<div class="weight-box" style="border-color:#28a745;"><p style="color:#28a745; font-weight:bold;">✅ Peso ({peso_vidrio:.2f} kgf) en CALZOS</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="weight-box" style="border-color:#28a745;"><p style="color:#28a745;">✅ PESO SOPORTADO POR CALZOS ({peso_vidrio:.2f} kgf)</p></div>', unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
 with c1: st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
-with c2: st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A (Calzos)")
+with c2: st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A")
 with c3: st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
 
-# =================================================================
-# 7. GRÁFICOS DE SENSIBILIDAD
-# =================================================================
-st.subheader("📈 Análisis de Comportamiento")
+st.subheader("📈 Análisis de Sensibilidad")
 col_g1, col_g2 = st.columns(2)
 
 with col_g1:
-    st.write("**Bite Sugerido vs Presión de Viento**")
-    p_rango = np.linspace(50, 450, 50)
-    b_v_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
+    st.write("**Impacto de la Presión de Viento**")
+    p_r = np.linspace(50, 450, 50)
+    b_v_r = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_r]
     fig1, ax1 = plt.subplots(figsize=(10, 5))
-    ax1.plot(p_rango, b_v_rango, color='#003366', lw=2)
-    ax1.set_xlabel("Presión Viento (kgf/m²)"); ax1.set_ylabel("Bite (mm)"); ax1.grid(True, alpha=0.3)
+    ax1.plot(p_r, b_v_r, color='#003366', lw=2); ax1.grid(True, alpha=0.3)
+    ax1.set_xlabel("Presión (kgf/m²)"); ax1.set_ylabel("Bite (mm)")
     st.pyplot(fig1)
 
 with col_g2:
-    st.write("**Bite Sugerido vs Peso del Vidrio (Sin Calzos)**")
-    p_vidrio_rango = np.linspace(20, 500, 50) # Rango de 20 a 500 kg
-    per_cm_fijo = 2 * (ancho + alto) * 100
-    b_p_rango = [(p / (per_cm_fijo * fp)) * 10 for p in p_vidrio_rango]
+    st.write("**Impacto del Peso (Corte en Silicona)**")
+    w_r = np.linspace(20, 500, 50)
+    per_fijo = 2 * (ancho + alto) * 100
+    b_p_r = [(w / (per_fijo * fp)) * 10 for w in w_r]
     fig2, ax2 = plt.subplots(figsize=(10, 5))
-    ax2.plot(p_vidrio_rango, b_p_rango, color='#d9534f', lw=2)
-    ax2.set_xlabel("Peso Vidrio (kgf)"); ax2.set_ylabel("Bite (mm)"); ax2.grid(True, alpha=0.3)
+    ax2.plot(w_r, b_p_r, color='#d9534f', lw=2); ax2.grid(True, alpha=0.3)
+    ax2.set_xlabel("Peso (kgf)"); ax2.set_ylabel("Bite (mm)")
     st.pyplot(fig2)
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>Proyectos Estructurales Lab | Mauricio Riquelme | 'Programming is understanding'</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #666;'>Mauricio Riquelme | Proyectos Estructurales</div>", unsafe_allow_html=True)
