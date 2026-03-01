@@ -136,7 +136,7 @@ st.divider()
 st.sidebar.header("⚙️ Configuración del Análisis")
 
 # 3.1 Datos Geométricos del Vidrio
-with st.sidebar.expander("📐 Geometría del Panel del Vidrio", expanded=True):
+with st.sidebar.expander("📐 Geometría del Panel Vidriado", expanded=True):
     ancho_v = st.number_input("Ancho del Vidrio (m)", value=1.50, step=0.05, format="%.2f")
     alto_v = st.number_input("Alto del Vidrio (m)", value=2.50, step=0.05, format="%.2f")
     esp_v = st.number_input("Espesor Nominal del Vidrio (mm)", value=10.0, step=1.0)
