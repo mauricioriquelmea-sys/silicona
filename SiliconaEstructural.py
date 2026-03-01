@@ -5,190 +5,210 @@ import matplotlib.pyplot as plt
 import math
 import os
 import base64
+from fpdf import FPDF
 
 # =================================================================
-# 1. CONFIGURACIÓN CORPORATIVA Y ESTILO (WIDE)
+# 1. CONFIGURACIÓN Y ESTILO (UI/UX)
 # =================================================================
-st.set_page_config(page_title="Cálculo Silicona Estructural | Proyectos Estructurales", layout="wide")
+st.set_page_config(page_title="AccuraWall | Mauricio Riquelme", layout="wide")
 
 st.markdown("""
     <style>
-    .main > div { padding-left: 2.5rem; padding-right: 2.5rem; max-width: 100%; }
+    .main > div { padding-left: 2.5rem; padding-right: 2.5rem; }
     .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
     .result-box { 
-        background-color: #f0f7ff; 
-        padding: 25px; 
-        border-left: 8px solid #003366; 
-        border-radius: 8px; 
-        margin: 20px 0;
+        background-color: #f0f7ff; padding: 25px; 
+        border-left: 10px solid #003366; border-radius: 8px; margin: 20px 0;
     }
-    .weight-box {
-        background-color: #ffffff;
-        padding: 15px;
-        border: 1px dashed #003366;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        text-align: center;
+    .guide-box {
+        background-color: #fffaf0; padding: 15px;
+        border: 1px solid #ff9900; border-radius: 8px; margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# =================================================================
-# 2. ENCABEZADO Y LOGOS
-# =================================================================
-def get_base64_image(image_path):
-    if os.path.exists(image_path):
-        with open(image_path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return None
-
-logo_b64 = get_base64_image("Logo.png")
-if logo_b64:
-    st.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="400"></div>', unsafe_allow_html=True)
-
-st.title("🧪 Análisis de Silicona Estructural")
-st.markdown("#### **Diseño de Bite y Glueline Thickness bajo Parámetros Elásticos**")
+st.title("🏛️ Prediseño de Mullions")
+st.markdown("#### **Control de Deflexión y Distribución de Carga Tributaria**")
 st.divider()
 
 # =================================================================
-# 3. SIDEBAR: PARÁMETROS TÉCNICOS
+# 2. SIDEBAR: PARÁMETROS TÉCNICOS
 # =================================================================
 st.sidebar.header("⚙️ Parámetros de Diseño")
 
-with st.sidebar.expander("📐 Geometría del Vidrio", expanded=True):
-    ancho = st.number_input("Ancho del Vidrio (m)", value=1.50, step=0.05)
-    alto = st.number_input("Alto del Vidrio (m)", value=2.50, step=0.05)
-    t_vidrio = st.number_input("Espesor del Vidrio (mm)", value=10.0, step=1.0)
-    lado_menor = min(ancho, alto)
+with st.sidebar.expander("📐 Geometría y Carga", expanded=True):
+    L = st.number_input("Alto del Mullion (L) [mm]", value=3500.0, step=10.0)
+    B = st.number_input("Ancho Tributario (B) [mm]", value=1500.0, step=10.0)
+    q = st.number_input("Carga de Viento (q) [kgf/m²]", value=100.0, step=5.0)
+    e_vidrio = st.number_input("Espesor Vidrio (e) [mm]", value=6.0)
 
-with st.sidebar.expander("🌪️ Carga de Diseño", expanded=True):
-    p_viento = st.number_input("Presión de Diseño p (kgf/m²)", value=185.0, step=5.0)
-
-with st.sidebar.expander("🧪 Propiedades y Configuración", expanded=True):
-    # Opción solicitada por el usuario (Desmarcada por defecto)
-    toma_peso = st.checkbox("¿Silicona toma peso propio?", value=False, help="Marcar solo si NO se usan calzos de apoyo (setting blocks).")
-    
-    f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0)
-    f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0)
-    E_silicona_mpa = st.number_input("Módulo de Elasticidad E (MPa)", value=1.40, step=0.10)
-    delta_T = st.slider("Diferencial Térmico ΔT (°C)", 10, 80, 50)
-
-# Conversiones Técnicas
-psi_to_kgcm2 = 0.070307
-fv = f_viento_psi * psi_to_kgcm2
-fp = f_peso_psi * psi_to_kgcm2
-E_kgcm2 = E_silicona_mpa * 10.1972 
-
-# =================================================================
-# 4. MOTOR DE CÁLCULO
-# =================================================================
-
-# 1. Masa del Vidrio
-volumen_vidrio = ancho * alto * (t_vidrio / 1000)
-densidad_vidrio = 2500 
-peso_vidrio = volumen_vidrio * densidad_vidrio
-
-# 2. Bite por Viento (Bv)
-bite_viento_mm = (p_viento * lado_menor) / (2 * fv * 100) * 10
-
-# 3. Bite por Peso Propio (Bp) - Solo si aplica
-if toma_peso:
-    perimetro_cm = 2 * (ancho + alto) * 100
-    bite_peso_mm = (peso_vidrio / (perimetro_cm * fp)) * 10
+# Criterio automático NCh
+if L < 4115:
+    criterio_sugerido = "L/175"
+    valor_df_sugerido = L / 175
 else:
-    bite_peso_mm = 0.0  # El peso lo toman los calzos
+    criterio_sugerido = "L/240 + 6.35 mm"
+    valor_df_sugerido = (L / 240) + 6.35
 
-# 4. Glueline Thickness (gt) basado en Módulo E
-L_max_mm = max(ancho, alto) * 1000
-alfa_al, alfa_vi = 23.2e-6, 9.0e-6
-delta_L = L_max_mm * abs(alfa_al - alfa_vi) * delta_T
+with st.sidebar.expander("📏 Criterio de Deformación", expanded=True):
+    st.markdown(f"**Sugerido por Norma:** `{criterio_sugerido}`")
+    df_admisible = st.number_input("Deflexión Admisible [mm]", value=float(valor_df_sugerido))
 
-# Glueline Thickness mecánico
-glueline_mm = (delta_L * E_kgcm2) / (fv * 1.5) 
-glueline_mm = max(glueline_mm, (delta_L / 0.25)) # Mínimo por deformación técnica 25%
-
-# ... (Todo el código anterior de cálculo se mantiene igual) ...
-
+with st.sidebar.expander("🧪 Material y Distribución", expanded=True):
+    material = st.selectbox("Material", ["Aluminio 6063 - T6", "Aluminio 6063 - T5", "Acero A42-27ES"])
+    distribucion = st.radio("Distribución de Carga", ["Rectangular", "Trapezoidal"])
 
 # =================================================================
-# 5. DESPLIEGUE DE RESULTADOS CON POPUP DE CALZOS
+# 3. MOTOR DE CÁLCULO
 # =================================================================
-st.subheader("📊 Resultados de Análisis Estructural")
+def calcular_requerimientos():
+    if material == "Aluminio 6063 - T6":
+        E, Fcy = 7101002754, 17576739.5
+    elif material == "Aluminio 6063 - T5":
+        E, Fcy = 7101002754, 11249113.3
+    else: # Acero
+        E, Fcy = 21000000000, 27532337.75
 
-# Bloque de Peso del Vidrio con lógica de Calzos
-if toma_peso:
-    st.markdown(f"""
-    <div class="weight-box">
-        <p style="margin:5px 0; color:#555;">Peso Total del Vidrio</p>
-        <p style="font-size: 1.5em; margin:0; color:#003366; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
-        <p style="color:#d9534f; font-weight:bold;">⚠️ Silicona CARGADA con peso propio</p>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    # Contenedor especial para calzos
-    st.markdown(f"""
-    <div class="weight-box" style="border-color: #28a745;">
-        <p style="margin:5px 0; color:#555;">Peso Total del Vidrio</p>
-        <p style="font-size: 1.5em; margin:0; color:#28a745; font-weight:bold;">{peso_vidrio:.2f} kgf</p>
-        <p style="color:#28a745; font-weight:bold;">✅ Peso soportado por CALZOS (Setting Blocks)</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Simulación de Popup mediante Expander técnico
-    with st.expander("📍 Ver esquema de ubicación de calzos"):
-        st.write("Según estándar de carpintería, los calzos deben ubicarse en los puntos de apoyo del borde inferior:")
-        
-        # Intentar cargar la imagen del esquema de calzos
-        esquema_calzos = "ubicacion_calzos.png" # Nombre del archivo en tu repositorio
-        if os.path.exists(esquema_calzos):
-            st.image(esquema_calzos, caption="Ubicación típica de calzos a L/4", use_column_width=True)
-        else:
-            # Si no hay imagen, mostramos un diagrama instructivo
-            st.warning("Esquema no encontrado. Asegúrate de subir 'ubicacion_calzos.png' a tu repositorio.")
-            st.info("""
-            **Referencia de Instalación:**
-            - Ubicar 2 calzos en el borde inferior.
-            - Distancia desde las esquinas: **L / 4** (donde L es el ancho del vidrio).
-            - Material: Neopreno o EPDM (Dureza Shore A 80-90).
-            """)
+    L_m, B_m = L / 1000, B / 1000
+    Df_m = df_admisible / 1000
 
+    if distribucion == "Rectangular":
+        I_req = (5 / 384) * q * B_m * L_m**4 / (E * Df_m)
+        M = (1/8) * (q * B_m) * (L_m)**2
+        img_dist = "rect.jpg"
+    else:
+        # Ajuste Trapezoidal real para Mullions
+        ratio = B_m / (2 * L_m)
+        factor_i = (1 - (4/3) * (ratio**2))
+        factor_m = (1 - (2/3) * (ratio**2))
+        I_req = ((5 / 384) * q * B_m * L_m**4 / (E * Df_m)) * factor_i
+        M = ((1/8) * (q * B_m) * (L_m)**2) * factor_m
+        img_dist = "trap.jpg"
 
+    Fb = 0.6 * Fcy
+    S_req = M / Fb
+    return I_req * 100**4, S_req * 100**3, img_dist
 
-# Resto de métricas (Bite y Glueline)
+inercia, modulo, imagen_a_cargar = calcular_requerimientos()
+
+# =================================================================
+# 4. DESPLIEGUE DE RESULTADOS
+# =================================================================
+st.subheader("📊 Requerimientos Mínimos de Sección")
 c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("Bite (Viento)", f"{bite_viento_mm:.2f} mm")
-with c2:
-    st.metric("Bite (Peso)", f"{bite_peso_mm:.2f} mm" if toma_peso else "N/A (Calzos)")
-with c3:
-    st.metric("Glueline Thickness", f"{glueline_mm:.2f} mm")
+with c1: st.metric("Inercia (Ix)", f"{inercia:.2f} cm⁴")
+with c2: st.metric("Módulo (Sx)", f"{modulo:.2f} cm³")
+with c3: st.metric("Criterio Δ", criterio_sugerido)
+
+st.divider()
+
+col_fig, col_txt = st.columns([1, 1])
+with col_fig:
+    st.markdown(f"**Modelo de Carga: {distribucion}**")
+    if os.path.exists(imagen_a_cargar):
+        # Sub-columnas para reducción al 40%
+        sub1, sub2 = st.columns([4, 6])
+        with sub1:
+            st.image(imagen_a_cargar, caption=None, use_column_width=True)
+    else:
+        st.warning(f"💡 Archivo '{imagen_a_cargar}' no encontrado.")
+
+with col_txt:
+    st.markdown(f"""
+    <div class="result-box" style="margin-top:0;">
+        <h3 style="margin-top:0;">✅ Especificación Final:</h3>
+        <ul>
+            <li><strong>Largo L:</strong> {L} mm</li>
+            <li><strong>Ancho B:</strong> {B} mm</li>
+            <li><strong>Deflexión límite:</strong> {df_admisible:.2f} mm</li>
+            <li><strong>Inercia Req:</strong> {inercia:.2f} cm⁴</li>
+        </ul>
+        <hr>
+        <p><small>Nota: La inercia calculada con distribución {distribucion.lower()} es la base del diseño.</small></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# =================================================================
+# 5. GENERADOR DE PDF PROFESIONAL (REVISADO)
+# =================================================================
+def generar_pdf_mullion():
+    pdf = FPDF()
+    pdf.add_page()
+    if os.path.exists("Logo.png"):
+        pdf.image("Logo.png", x=10, y=8, w=33)
+    
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Memoria de Calculo: Mullions", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
+    pdf.ln(15)
+
+    # 1. Datos
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 1. INFORMACION DEL DISENO", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, f" L: {L} mm | B: {B} mm", ln=True)
+    pdf.cell(0, 8, f" Viento: {q} kgf/m2", ln=True)
+
+    # 2. Resultados
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 2. RESULTADOS ESTRUCTURALES", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, f" Inercia Ix Req: {inercia:.2f} cm4", ln=True)
+    pdf.cell(0, 8, f" Modulo Sx Req: {modulo:.2f} cm3", ln=True)
+    
+    return pdf.output()
+
+st.sidebar.markdown("---")
+# Usamos una clave única para el botón
+if st.sidebar.button("📄 Generar Reporte PDF", key="btn_generar"):
+    try:
+        pdf_bytes = generar_pdf_mullion()
+        b64 = base64.b64encode(pdf_bytes).decode()
+        
+        # HTML del botón con estilo forzado
+        btn_html = f'''
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="data:application/pdf;base64,{b64}" download="Memoria_Mullion_L{int(L)}.pdf" 
+                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
+                   border-radius: 5px; font-weight: bold; display: block; border: none;">
+                   📥 CLIC AQUÍ PARA DESCARGAR
+                </a>
+            </div>
+        '''
+        st.sidebar.markdown(btn_html, unsafe_allow_html=True)
+        st.sidebar.success("¡PDF generado con éxito!")
+    except Exception as e:
+        st.sidebar.error(f"Error al crear PDF: {e}")
 
 
 # =================================================================
 # 6. GRÁFICO DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Comportamiento del Bite vs Viento")
-p_rango = np.linspace(50, 450, 50)
-b_v_rango = [(p * lado_menor) / (2 * fv * 100) * 10 for p in p_rango]
+st.subheader(f"📈 Sensibilidad Ix vs Longitud ({distribucion})")
 
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.plot(p_rango, b_v_rango, color='#003366', lw=2.5, label='Bite (Viento)')
-if toma_peso:
-    ax.axhline(bite_peso_mm, color='#d9534f', ls='--', label='Bite (Peso)')
-ax.axhline(glueline_mm, color='#5cb85c', ls=':', label='Glueline Thickness')
-ax.axhline(6, color='#333', lw=1, ls='-.', label='Mínimo 6mm')
-ax.set_xlabel("Presión de Viento (kgf/m²)")
-ax.set_ylabel("Dimensión (mm)")
-ax.legend()
+L_axis = np.linspace(2000, 6000, 50)
+I_axis = []
+for lx in L_axis:
+    dfx = (lx / 175) if lx < 4115 else ((lx / 240) + 6.35)
+    Ex = 7101002754 if material.startswith("Aluminio") else 21000000000
+    if distribucion == "Rectangular":
+        ix = (5 / 384) * q * (B/1000) * (lx/1000)**4 / (Ex * (dfx/1000))
+    else:
+        r = (B/1000) / (2 * (lx/1000))
+        ix = ((5 / 384) * q * (B/1000) * (lx/1000)**4 / (Ex * (dfx/1000))) * (1 - (4/3)*r**2)
+    I_axis.append(ix * 100**4)
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(L_axis, I_axis, color='#003366', label=f'Ix ({distribucion})')
+ax.axvline(4115, color='red', ls='--', alpha=0.5, label='Umbral 4115mm')
+ax.scatter([L], [inercia], color='red', zorder=5)
+ax.set_xlabel("L (mm)")
+ax.set_ylabel("Ix (cm4)")
+ax.legend(); ax.grid(True, alpha=0.3)
 st.pyplot(fig)
 
-# =================================================================
-# 7. CIERRE CORPORATIVO
-# =================================================================
 st.markdown("---")
-st.markdown(f"""
-    <div style="text-align: center; color: #666;">
-        <strong>Proyectos Estructurales Lab | Mauricio Riquelme</strong><br>
-        <span style="font-style: italic; font-size: 1.2em; color: #003366;">"Programming is understanding"</span>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme</div>", unsafe_allow_html=True)
