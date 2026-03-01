@@ -2,9 +2,10 @@
 """
 Created on Sunday Mar 01 2026
 @author: Structural Lab / Mauricio Riquelme
-Project: Análisis Avanzado de Silicona Estructural - Versión Full Normativa 390+ Líneas
+Project: Análisis Avanzado de Silicona Estructural - Versión Ultra-Detallada
 Normativa: ASTM C1184 / NCh 2507 / AAMA Structural Glazing
-Restricción: Mínimo geométrico de 1/4" (6.35 mm) para Bite (B) y Glueline (gt)
+Seguridad: Bloqueo estricto de Esfuerzos > 20 psi y Mínimo Geométrico 1/4"
+Líneas: 420+ (No simplificar)
 """
 
 import streamlit as st
@@ -26,7 +27,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inyección de estilos CSS avanzados para métricas, advertencias y contenedores corporativos.
+# Inyección de estilos CSS detallados para métricas, advertencias y contenedores corporativos.
+# Se añaden estilos específicos para resaltar cuando se aplica el mínimo normativo de 1/4".
 st.markdown("""
     <style>
     /* Optimización del contenedor principal */
@@ -76,6 +78,10 @@ st.markdown("""
         font-size: 0.95em;
         margin-top: 10px;
         display: block;
+        background-color: #fff2f2;
+        padding: 8px;
+        border-radius: 5px;
+        border: 1px solid #d9534f;
     }
 
     /* Caja de estado del peso propio */
@@ -125,7 +131,7 @@ st.markdown("#### **Diseño Crítico de Bite y Glueline Thickness bajo Normativa
 st.divider()
 
 # =================================================================
-# 3. SIDEBAR: PANEL DE ENTRADA TÉCNICA (EXTENDIDO)
+# 3. SIDEBAR: PANEL DE ENTRADA TÉCNICA (PROTECCIÓN DE SEGURIDAD)
 # =================================================================
 st.sidebar.header("⚙️ Configuración del Análisis")
 
@@ -142,8 +148,8 @@ with st.sidebar.expander("📐 Geometría del Cristal", expanded=True):
 with st.sidebar.expander("🌪️ Cargas de Diseño (Viento)", expanded=True):
     presion_viento = st.number_input("Presión de Diseño (kgf/m²)", value=185.0, step=5.0)
 
-# 3.3 Propiedades Mecánicas y Esquemas
-with st.sidebar.expander("🧪 Propiedades y Soporte", expanded=True):
+# 3.3 Propiedades Mecánicas y Bloqueo de Esfuerzos (F_a.s y F_a.t)
+with st.sidebar.expander("🧪 Esfuerzos Admisibles y Soporte", expanded=True):
     check_toma_peso = st.checkbox("¿Silicona toma peso propio? (Corte)", value=False)
     
     # Lógica condicional: Si NO toma el peso, se muestra la ubicación de calzos
@@ -154,29 +160,50 @@ with st.sidebar.expander("🧪 Propiedades y Soporte", expanded=True):
             st.image("ubicacion_calzos.png", caption="Ubicación normativa de apoyos mecánicos")
     
     st.markdown("---")
-    # Esfuerzos admisibles configurables
-    f_viento_psi = st.number_input("Esfuerzo Adm. Viento (psi)", value=20.0, help="F_a.v para diseño de Bite")
-    f_shear_psi = 20.0 # Tensión de corte fija según requerimiento del usuario
-    st.info(f"Esfuerzo Adm. Corte (F_a.s): {f_shear_psi} psi")
+    # ESFUERZOS ADMISIBLES CON BLOQUEO SUPERIOR A 20 PSI
+    f_traccion_psi = st.number_input(
+        "Adm. Tracción (Corta Duración) [psi]", 
+        value=20.0, 
+        min_value=1.0, 
+        max_value=20.0,
+        help="Máximo permitido por norma para tracción por viento: 20 psi."
+    )
     
-    f_peso_psi = st.number_input("Esfuerzo Adm. Peso (psi)", value=1.0, help="F_a.p para carga permanente")
+    f_shear_corta_psi = st.number_input(
+        "Adm. Cizalle (Corta Duración) [psi]", 
+        value=20.0, 
+        min_value=1.0, 
+        max_value=20.0,
+        help="Esfuerzo para diseño de gt (Glueline). Máximo permitido: 20 psi."
+    )
+    
+    f_shear_larga_psi = st.number_input(
+        "Adm. Cizalle (Larga Duración) [psi]", 
+        value=1.0, 
+        min_value=0.1, 
+        max_value=2.0,
+        help="Esfuerzo para carga permanente (Peso). Típico: 1 psi."
+    )
+
     mod_e_sil = st.number_input("Módulo de Elasticidad E (MPa)", value=1.40, step=0.1)
     delta_temp = st.slider("Diferencial Térmico Máximo ΔT (°C)", 10, 80, 50)
 
 # Definición de Factores y Constantes Estructurales
 MIN_GEOM = 6.35 # Mínimo geométrico de 1/4 pulgada en milímetros
 FACTOR_PSI_KG = 0.070307 # 1 psi a kgf/cm²
-fv_kg = f_viento_psi * FACTOR_PSI_KG
-fs_kg = f_shear_psi * FACTOR_PSI_KG # Valor fijo de 1.406 kgf/cm²
-fp_kg = f_peso_psi * FACTOR_PSI_KG
+
+# Conversiones a unidades de cálculo (kgf/cm²)
+fv_kg = f_traccion_psi * FACTOR_PSI_KG
+fs_kg = f_shear_corta_psi * FACTOR_PSI_KG
+fp_kg = f_shear_larga_psi * FACTOR_PSI_KG
 E_kg = mod_e_sil * 10.19716 # MPa a kgf/cm²
 
 # Coeficientes de Dilatación Térmica
 ALFA_ALU = 23.2e-6 # Aluminio 6063-T6
-ALFA_VID = 9.0e-6  # Vidrio de Construcción
+ALFA_VID = 9.0e-6  # Vidrio Flotado
 
 # =================================================================
-# 4. MOTOR DE CÁLCULO ESTRUCTURAL (LÓGICA FULL)
+# 4. MOTOR DE CÁLCULO ESTRUCTURAL (ALGORITMOS DETALLADOS)
 # =================================================================
 # 4.1 Peso Propio del Cristal
 peso_vidrio_kg = (ancho_v * alto_v * (esp_v / 1000)) * 2500 
@@ -192,9 +219,9 @@ if check_toma_peso:
 else:
     bite_req_peso = 0.0
 
-# 4.3 Aplicación de Criterios de Diseño para el Bite
+# 4.3 Aplicación de Criterios de Diseño para el Bite (Inyectabilidad)
 bite_teorico = max(bite_req_viento, bite_req_peso)
-# Aplicación del mínimo absoluto de 1/4" (6.35 mm)
+# Aplicación estricta del mínimo absoluto de 1/4" (6.35 mm)
 bite_final_diseno = max(bite_teorico, MIN_GEOM)
 check_min_bite = bite_final_diseno == MIN_GEOM
 
@@ -202,9 +229,11 @@ check_min_bite = bite_final_diseno == MIN_GEOM
 # Amplitud diferencial térmica referenciada al centro del paño (L/2)
 mov_alu = ALFA_ALU * delta_temp * (l_mayor * 1000 / 2)
 mov_vid = ALFA_VID * delta_temp * (l_mayor * 1000 / 2)
+# DT: Amplitud de Movimiento Térmico Diferencial
 DT_amplitud = abs(mov_alu - mov_vid) # Movimiento diferencial en mm
 
-# Determinación del Glueline basado en tensión de corte (20 psi)
+# Determinación del Glueline basado en tensión de corte admisible (F_a.s)
+# gt = (DT * E) / (3 * F_a.s)
 gt_por_tension = (DT_amplitud * E_kg) / (3 * fs_kg)
 # Determinación del Glueline basado en capacidad de movimiento elástico (25%)
 gt_por_capacidad = DT_amplitud / 0.25
@@ -215,7 +244,7 @@ glueline_final = max(gt_teorico_final, MIN_GEOM)
 check_min_gt = glueline_final == MIN_GEOM
 
 # =================================================================
-# 5. GENERADOR DE MEMORIA DE CÁLCULO (PDF)
+# 5. GENERADOR DE MEMORIA DE CÁLCULO (PDF FULL)
 # =================================================================
 def generate_engineering_pdf():
     """Genera la memoria técnica detallada en formato PDF."""
@@ -244,7 +273,9 @@ def generate_engineering_pdf():
     pdf.cell(0, 8, f" Geometría Vidrio: {ancho_v} m x {alto_v} m (Espesor: {esp_v} mm)", ln=True)
     pdf.cell(0, 8, f" Presión de Diseño Viento (p): {presion_viento} kgf/m2", ln=True)
     pdf.cell(0, 8, f" Diferencial Térmico (Delta T): {delta_temp} C", ln=True)
-    pdf.cell(0, 8, f" Esfuerzo Adm. Viento (fv): {f_viento_psi} psi | Adm. Corte (fs): {f_shear_psi} psi", ln=True)
+    pdf.cell(0, 8, f" Esfuerzo Adm. Tracción (Corta): {f_traccion_psi} psi", ln=True)
+    pdf.cell(0, 8, f" Esfuerzo Adm. Cizalle (Corta): {f_shear_corta_psi} psi", ln=True)
+    pdf.cell(0, 8, f" Esfuerzo Adm. Cizalle (Larga): {f_shear_larga_psi} psi", ln=True)
     pdf.ln(5)
 
     # 5.2 Resultados del Análisis
@@ -252,7 +283,8 @@ def generate_engineering_pdf():
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, " 2. RESULTADOS DEL ANÁLISIS ESTRUCTURAL", ln=True, fill=True)
     pdf.set_font("Arial", 'B', 11)
-    # Resultados críticos con mención de mínimos normativos si aplica
+    
+    # Textos de resultados con indicación de mínimo normativo
     bite_pdf_txt = f"{bite_final_diseno:.2f} mm" + (" (Mín. 1/4\" Aplicado)" if check_min_bite else "")
     gt_pdf_txt = f"{glueline_final:.2f} mm" + (" (Mín. 1/4\" Aplicado)" if check_min_gt else "")
     
@@ -262,10 +294,10 @@ def generate_engineering_pdf():
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Movimiento Térmico Diferencial (DT): {DT_amplitud:.4f} mm", ln=True)
     pdf.cell(0, 8, f" Requerimiento por Viento (Teórico): {bite_req_viento:.2f} mm", ln=True)
-    pdf.cell(0, 8, f" Requerimiento por Peso Propio: {bite_req_peso:.2f} mm", ln=True)
+    pdf.cell(0, 8, f" Requerimiento por Peso Propio (Teórico): {bite_req_peso:.2f} mm", ln=True)
     pdf.cell(0, 8, f" Peso Total del Cristal: {peso_vidrio_kg:.2f} kgf", ln=True)
     
-    # Inserción de esquema técnico
+    # Inserción de esquema técnico si existe
     if os.path.exists("esquema_silicona.png"):
         pdf.ln(10)
         pdf.image("esquema_silicona.png", x=55, w=100)
@@ -317,10 +349,10 @@ else:
 col_bite_final, col_bite_v, col_bite_p = st.columns(3)
 
 with col_bite_final:
-    label_bite = "Bite de Diseño Mínimo (B)" + (" [1/4\"]" if check_min_bite else "")
+    label_bite = "Bite de Diseño Final (B)"
     st.metric(label_bite, f"{bite_final_diseno:.2f} mm")
     if check_min_bite:
-        st.markdown('<span class="min-warning">⚠️ Aplicado mínimo normativo de 6.35 mm</span>', unsafe_allow_html=True)
+        st.markdown('<span class="min-warning">⚠️ Aplicado mínimo normativo de 6.35 mm (1/4")</span>', unsafe_allow_html=True)
 
 with col_bite_v:
     st.metric("Requerimiento Viento", f"{bite_req_viento:.2f} mm")
@@ -337,11 +369,11 @@ st.divider()
 col_res_gt, col_res_dt = st.columns([1.5, 1])
 
 with col_res_gt:
-    label_gt = "Glueline Thickness (gt)" + (" [1/4\"]" if check_min_gt else "")
+    label_gt = "Glueline Thickness Final (gt)"
     st.metric(label_gt, f"{glueline_final:.2f} mm")
     if check_min_gt:
-        st.markdown('<span class="min-warning">⚠️ Aplicado mínimo normativo de 6.35 mm</span>', unsafe_allow_html=True)
-    st.caption(f"Criterio: Tensión Adm. Corte = {f_shear_psi} psi | Capacidad Mov: 25%")
+        st.markdown('<span class="min-warning">⚠️ Aplicado mínimo normativo de 6.35 mm (1/4")</span>', unsafe_allow_html=True)
+    st.caption(f"Criterio: Tracción Adm. = {f_traccion_psi} psi | Cizalle Adm. (Corta) = {f_shear_corta_psi} psi")
 
 with col_res_dt:
     st.markdown("**Movimiento Térmico Diferencial (DT):**")
@@ -376,11 +408,11 @@ c_plot_1, c_plot_2 = st.columns(2)
 with c_plot_1:
     st.markdown("**Bite Sugerido vs Presión de Viento**")
     p_lin_range = np.linspace(50, 450, 100)
-    # Se aplica el mínimo de 6.35 en la curva visual
+    # Se aplica el mínimo de 6.35 en la curva visual para representar la realidad física
     b_lin_calc = [max((p * l_menor) / (2 * fv_kg * 100) * 10, MIN_GEOM) for p in p_lin_range]
     fig_a, ax_a = plt.subplots(figsize=(10, 5))
     ax_a.plot(p_lin_range, b_lin_calc, color='#003366', lw=3, label="Curva de Bite (B)")
-    ax_a.axvline(presion_viento, color='red', linestyle='--', alpha=0.5, label="Carga Actual")
+    ax_a.axvline(presion_viento, color='red', linestyle='--', alpha=0.5, label="Presión Actual")
     ax_a.set_xlabel("Presión Viento (kgf/m²)"); ax_a.set_ylabel("Bite (mm)")
     ax_a.legend(); ax_a.grid(True, linestyle=':', alpha=0.6)
     st.pyplot(fig_a)
@@ -389,7 +421,7 @@ with c_plot_1:
 with c_plot_2:
     st.markdown("**Glueline (gt) vs Diferencial Térmico**")
     dt_lin_range = np.linspace(10, 90, 100)
-    # Cálculo de gt dinámico para la curva
+    # Cálculo de gt dinámico para la curva visual
     dt_amps = [(l_mayor * 1000 / 2) * abs(ALFA_ALU - ALFA_VID) * dt for dt in dt_lin_range]
     gt_calcs_plot = [max((d * E_kg) / (3 * fs_kg), d / 0.25, MIN_GEOM) for d in dt_amps]
     fig_b, ax_b = plt.subplots(figsize=(10, 5))
@@ -405,11 +437,11 @@ with c_plot_2:
 st.markdown(
     f'<div class="footer-custom">'
     f'© {datetime.now().year} Mauricio Riquelme | Proyectos Estructurales Lab<br>'
-    f'<em>"Programming is understanding, understanding is engineering."</em>'
+    f'<em>"Programming is understanding, engineering is knowing the limits."</em>'
     f'</div>', 
     unsafe_allow_html=True
 )
 
-# Fin del script silicona_estructural_final_normativa.py
-# El código ha sido extendido a 390+ líneas para asegurar integridad absoluta.
+# Fin del script silicona_estructural_v5_final_pro.py
+# El código ha sido extendido y documentado para asegurar integridad absoluta.
 # =================================================================
